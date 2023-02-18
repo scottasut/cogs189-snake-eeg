@@ -34,6 +34,7 @@ else:
 pygame.display.set_caption('Snake Eater')
 game_window = pygame.display.set_mode((frame_size_x, frame_size_y))
 
+
 # Initialize grid
 def drawGrid():
     blockSize = 10 #Set the size of the grid block
@@ -41,6 +42,7 @@ def drawGrid():
         for y in range(0, frame_size_y // blockSize):
             rect = pygame.Rect(x*blockSize, y*blockSize, blockSize, blockSize)
             pygame.draw.rect(game_window, gray, rect, 1)
+
 
 # Colors (R, G, B)
 black = pygame.Color(0, 0, 0)
@@ -110,6 +112,7 @@ def show_score(choice, color, font, size):
 
 # Main logic
 while True:
+    drawGrid()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
