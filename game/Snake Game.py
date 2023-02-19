@@ -35,9 +35,19 @@ pygame.display.set_caption('Snake Eater')
 game_window = pygame.display.set_mode((frame_size_x, frame_size_y))
 
 
+# Initialize grid
+def drawGrid():
+    blockSize = 10 #Set the size of the grid block
+    for x in range(0, frame_size_x // blockSize):
+        for y in range(0, frame_size_y // blockSize):
+            rect = pygame.Rect(x*blockSize, y*blockSize, blockSize, blockSize)
+            pygame.draw.rect(game_window, gray, rect, 1)
+
+
 # Colors (R, G, B)
 black = pygame.Color(0, 0, 0)
 white = pygame.Color(255, 255, 255)
+gray = pygame.Color(25, 25, 25)
 red = pygame.Color(255, 0, 0)
 green = pygame.Color(0, 255, 0)
 blue = pygame.Color(0, 0, 255)
@@ -102,6 +112,7 @@ def show_score(choice, color, font, size):
 
 # Main logic
 while True:
+    drawGrid()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -126,6 +137,9 @@ while True:
         snake_pos[0] -= 10
     if direction == 'RIGHT':
         snake_pos[0] += 10
+
+    # Refresh game screen
+    pygame.display.update()
 
     # Snake body growing mechanism
     snake_body.insert(0, list(snake_pos))
@@ -164,6 +178,6 @@ while True:
 
     show_score(1, white, 'consolas', 20)
     # Refresh game screen
-    pygame.display.update()
+    #pygame.display.update()
     # Refresh rate
     fps_controller.tick(difficulty)
