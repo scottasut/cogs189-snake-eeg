@@ -3,8 +3,7 @@ Snake Eater
 Made with PyGame
 """
 
-import pygame, sys, time, random
-
+import pygame, sys, time, random, itertools
 
 # Difficulty settings
 # Easy      ->  10
@@ -18,6 +17,7 @@ difficulty = 5 # Slowing game down
 # Window size
 frame_size_x = 720
 frame_size_y = 480
+cell_size = 30
 
 # Checks for errors encountered
 check_errors = pygame.init()
@@ -29,20 +29,9 @@ if check_errors[1] > 0:
 else:
     print('[+] Game successfully initialised')
 
-
 # Initialise game window
 pygame.display.set_caption('Snake Eater')
 game_window = pygame.display.set_mode((frame_size_x, frame_size_y))
-
-
-# Initialize grid
-def drawGrid():
-    blockSize = 10 #Set the size of the grid block
-    for x in range(0, frame_size_x // blockSize):
-        for y in range(0, frame_size_y // blockSize):
-            rect = pygame.Rect(x*blockSize, y*blockSize, blockSize, blockSize)
-            pygame.draw.rect(game_window, gray, rect, 1)
-
 
 # Colors (R, G, B)
 black = pygame.Color(0, 0, 0)
@@ -52,21 +41,20 @@ red = pygame.Color(255, 0, 0)
 green = pygame.Color(0, 255, 0)
 blue = pygame.Color(0, 0, 255)
 
-
 # FPS (frames per second) controller
 fps_controller = pygame.time.Clock()
 
-
 # Game variables
-snake_pos = [100, 50]
-snake_body = [[100, 50], [100-10, 50], [100-(2*10), 50]]
-
-food_pos = [random.randrange(1, (frame_size_x//10)) * 10, random.randrange(1, (frame_size_y//10)) * 10]
+snake_pos = [5 * cell_size, 5 * cell_size]
+snake_body = [[5 * cell_size, 5 * cell_size], [5 * cell_size - cell_size, 5 * cell_size], [5 * cell_size - (2 * cell_size), 5 * cell_size]]
+food_cells = set(itertools.product(range(cell_size, frame_size_x - cell_size, cell_size), range(cell_size, frame_size_y - cell_size, cell_size)))
+possible = food_cells - set([tuple(x) for x in snake_body])
+food_pos = random.choice(list(possible))
 food_spawn = True
-
 direction = 'RIGHT'
+horizontal_dirs = ('LEFT', 'RIGHT')
+vertical_dirs = ('UP', 'DOWN')
 change_to = direction
-
 # (current direction, change to)
 dir_map = {
     ('LEFT', 'LEFT'): 'DOWN',
@@ -78,24 +66,44 @@ dir_map = {
     ('DOWN', 'LEFT'): 'LEFT',
     ('DOWN', 'RIGHT'): 'RIGHT'
 }
-
 score = 0
 
+def draw():
+    # Draw background:
+    game_window.fill(black)
 
+    # Draw snake:
+    for pos in snake_body:
+        pygame.draw.rect(game_window, green, pygame.Rect(pos[0], pos[1], cell_size, cell_size))
+    
+    # Draw food:
+    pygame.draw.rect(game_window, white, pygame.Rect(food_pos[0], food_pos[1], cell_size, cell_size))
+
+    # Draw the grid:
+    for x in range(0, frame_size_x // cell_size):
+        for y in range(0, frame_size_y // cell_size):
+            rect = pygame.Rect(x * cell_size, y * cell_size, cell_size, cell_size)
+            pygame.draw.rect(game_window, gray, rect, 1)
+
+    # Draw score:
+    show_score(1, red, 'times', 20)
+    
+    # Refresh:
+    pygame.display.update()
+  
 # Game Over
 def game_over():
     my_font = pygame.font.SysFont('times new roman', 90)
-    game_over_surface = my_font.render('YOU DIED', True, red)
+    game_over_surface = my_font.render('GAME OVER', True, red)
     game_over_rect = game_over_surface.get_rect()
     game_over_rect.midtop = (frame_size_x/2, frame_size_y/4)
     game_window.fill(black)
     game_window.blit(game_over_surface, game_over_rect)
     show_score(0, red, 'times', 20)
     pygame.display.flip()
-    time.sleep(3)
+    time.sleep(0.1)
     pygame.quit()
     sys.exit()
-
 
 # Score
 def show_score(choice, color, font, size):
@@ -103,81 +111,70 @@ def show_score(choice, color, font, size):
     score_surface = score_font.render('Score : ' + str(score), True, color)
     score_rect = score_surface.get_rect()
     if choice == 1:
-        score_rect.midtop = (frame_size_x/10, 15)
+        score_rect.midtop = (frame_size_x // 2, 15)
     else:
-        score_rect.midtop = (frame_size_x/2, frame_size_y/1.25)
+        score_rect.midtop = (frame_size_x // 2, frame_size_y / 1.25)
     game_window.blit(score_surface, score_rect)
-    # pygame.display.flip()
 
-
-# Main logic
 while True:
-    drawGrid()
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
-        # Whenever a key is pressed down
-        elif event.type == pygame.KEYDOWN:
-            # A -> Left; D -> Right
-            if event.key == pygame.K_LEFT or event.key == ord('a'):
-                direction = dir_map[(direction, 'LEFT')]
-            if event.key == pygame.K_RIGHT or event.key == ord('d'):
-                direction = dir_map[(direction, 'RIGHT')]
-            # Esc -> Create event to quit the game
-            if event.key == pygame.K_ESCAPE:
-                pygame.event.post(pygame.event.Event(pygame.QUIT))
 
-    # Moving the snake
-    if direction == 'UP':
-        snake_pos[1] -= 10
-    if direction == 'DOWN':
-        snake_pos[1] += 10
-    if direction == 'LEFT':
-        snake_pos[0] -= 10
-    if direction == 'RIGHT':
-        snake_pos[0] += 10
-
-    # Refresh game screen
-    pygame.display.update()
-
-    # Snake body growing mechanism
+    # Update snake position:
+    snake_pos = snake_body[0]
+    snake_pos = (
+        snake_pos[0] + int(direction == "RIGHT") * cell_size - int(direction == "LEFT") * cell_size,
+        snake_pos[1] + int(direction == "DOWN") * cell_size - int(direction == "UP") * cell_size
+    )
     snake_body.insert(0, list(snake_pos))
-    if snake_pos[0] == food_pos[0] and snake_pos[1] == food_pos[1]:
+    
+    draw()
+
+    # Check for food alignment on axis
+    horizontal_alignment = snake_pos[0] == food_pos[0]
+    vertical_alignment = snake_pos[1] == food_pos[1]
+    awaiting_input = False
+
+    if horizontal_alignment and vertical_alignment:
         score += 1
         food_spawn = False
     else:
+        # Prompt turn on food alignment
+        if (horizontal_alignment and direction in horizontal_dirs) or vertical_alignment and direction in vertical_dirs:
+            awaiting_input = True
+        # Prompt turn to prevent wall collision
+        elif (snake_pos[0] in (0, frame_size_x - cell_size) and direction in horizontal_dirs) or (snake_pos[1] in (0, frame_size_y - cell_size) and direction in vertical_dirs):
+            awaiting_input = True
         snake_body.pop()
-
-    # Spawning food on the screen
+    
+    # Make turns:
+    while awaiting_input:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    print('Turning Left.')
+                    direction = dir_map[(direction, 'LEFT')]
+                    awaiting_input = False
+                elif event.key == pygame.K_RIGHT:
+                    print('Turning Right.')
+                    direction = dir_map[(direction, 'RIGHT')]
+                    awaiting_input = False
+    
     if not food_spawn:
-        food_pos = [random.randrange(1, (frame_size_x//10)) * 10, random.randrange(1, (frame_size_y//10)) * 10]
+        possible = food_cells - set([tuple(x) for x in snake_body])
+        food_pos = random.choice(list(possible))
     food_spawn = True
 
-    # GFX
-    game_window.fill(black)
-    for pos in snake_body:
-        # Snake body
-        # .draw.rect(play_surface, color, xy-coordinate)
-        # xy-coordinate -> .Rect(x, y, size_x, size_y)
-        pygame.draw.rect(game_window, green, pygame.Rect(pos[0], pos[1], 10, 10))
-
-    # Snake food
-    pygame.draw.rect(game_window, white, pygame.Rect(food_pos[0], food_pos[1], 10, 10))
-
-    # Game Over conditions
-    # Getting out of bounds
-    if snake_pos[0] < 0 or snake_pos[0] > frame_size_x-10:
+    if snake_pos[0] < 0 or snake_pos[0] > frame_size_x - cell_size:
         game_over()
-    if snake_pos[1] < 0 or snake_pos[1] > frame_size_y-10:
+    if snake_pos[1] < 0 or snake_pos[1] > frame_size_y - cell_size:
         game_over()
     # Touching the snake body
     for block in snake_body[1:]:
         if snake_pos[0] == block[0] and snake_pos[1] == block[1]:
             game_over()
-
-    show_score(1, white, 'consolas', 20)
-    # Refresh game screen
-    #pygame.display.update()
-    # Refresh rate
+    
     fps_controller.tick(difficulty)
