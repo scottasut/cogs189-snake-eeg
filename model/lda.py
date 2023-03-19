@@ -1,51 +1,54 @@
 import numpy as np
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
-class LDA:
-    def fit(self, X: np.ndarray, y: np.array) -> None:
-        """Fit the Linear Discriminant Analysis model to given data.
-        
-        Calculates the optimal projection vector 'w' and optimal class threshold 'c'
+class LDAHandler:
+    """
+    Wrapper class for sklearn.discriminant_analysis.LinearDiscriminantAnalysis to
+    convert EEG data to left/right movement predictions.
+    """
+
+    def __init__(self, class_mapping: dict, **model_params) -> None:
+        """Instantiates Linear Discriminant Analysis model and class mapping. 
 
         Args:
-            X (np.ndarray): point data
-            y (np.array): class truth values
+            class_mapping (dict): Mapping of truth values to directions.
         """
-        # Calculate covariance matrix
-        u = np.mean(X, axis=0).reshape(-1, 1)
-        scatter = np.zeros((X.shape[1], X.shape[1]))
-        for x in X:
-            diff = x - u
-            scatter += diff @ diff.T
-        cov = scatter / X.shape[0]
-
-        # Calculate optimal projection vector
-        left, right = X[y == 0], X[y == 1]
-        u_l, u_r = np.mean(left, axis=0).reshape(-1, 1), np.mean(right, axis=0).reshape(-1, 1)
-        self.w = np.linalg.inv(cov) @ (u_r - u_l)
-
-        # Calculate optimal threshold
-        self.c = self.w.T @ ((u_r + u_l) / 2)
+        self.__clf = LDA(**model_params)
+        self.__class_mapping = class_mapping
     
-    def predict(self, X: np.ndarray) -> np.array:
-        """Classify all points in given data.
+    def fit(self, X: np.ndarray, y: np.array) -> None:
+        """Fits the Linear Discriminant Analysis model to point data and class truth labels.
 
         Args:
-            X (np.ndarray): point data
+            X (np.ndarray): Point data.
+            y (np.array): Class truth labels.
+        """
+        self.__clf.fit_transform(X, y)
+    
+    def predict(self, X: np.ndarray, direction=True) -> np.array:
+        """Predicts class/direction of passed points.
+
+        Args:
+            X (np.ndarray): Point data.
+            direction (bool, optional): If True, return predicted direction, return class label otherwise. 
+                                        Defaults to True.
 
         Returns:
-            np.array: classification predictions for each point {0, 1}
+            np.array: Predictions.
         """
-        X_proj = X @ self.w
-        return X_proj.flatten() > self.c
+        predictions = self.__clf.predict(X)
+        if not direction:
+            return predictions
+        return np.array([self.__class_mapping[p] for p in predictions])
 
     def score(self, X: np.ndarray, y: np.array) -> float:
-        """Calculates accuracy of predictions on given point data compared to given class truth labels.
+        """Calculates prediction accuracy for given data.
 
         Args:
-            X (np.ndarray): point data
-            y (np.array): class truth values 
+            X (np.ndarray): Point data.
+            y (np.array): Class truth labels.
 
         Returns:
-            float: classification accuracy [0, 1]
+            float: Propotion of correct predictions according to given truth.
         """
-        return np.mean(self.predict(X) == y)
+        return self.__clf.score(X, y)
