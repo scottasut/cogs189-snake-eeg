@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.datasets import make_blobs
 
 class LDA:
     def fit(self, X: np.ndarray, y: np.array) -> None:
@@ -35,7 +33,7 @@ class LDA:
             X (np.ndarray): point data
 
         Returns:
-            _type_: _description_
+            np.array: classification predictions for each point {0, 1}
         """
         X_proj = X @ self.w
         return X_proj.flatten() > self.c
