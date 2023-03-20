@@ -4,6 +4,7 @@ Made with PyGame
 """
 
 import pygame, sys, time, random, itertools
+from util import load_example_data, trigger_key, predict_direction
 
 # Difficulty settings
 # Easy      ->  10
@@ -12,7 +13,8 @@ import pygame, sys, time, random, itertools
 # Harder    ->  60
 # Impossible->  120
 
-difficulty = 5 # Slowing game down
+difficulty = 20 # Slowing game down
+model_controlling = False # Determines whether game is played by our model
 
 # Window size
 frame_size_x = 720
@@ -93,6 +95,7 @@ def draw():
   
 # Game Over
 def game_over():
+    print(score)
     my_font = pygame.font.SysFont('times new roman', 90)
     game_over_surface = my_font.render('GAME OVER', True, red)
     game_over_rect = game_over_surface.get_rect()
@@ -152,14 +155,43 @@ while True:
     
     # Make turns:
     while awaiting_input:
+
+        if model_controlling:
+            best_direction = random.choice(['LEFT', 'RIGHT'])
+            if direction in horizontal_dirs:
+                if food_pos[1] > snake_pos[1]:
+                    best_direction = 'LEFT' if direction == 'LEFT' else 'RIGHT'
+                else:
+                    best_direction = 'RIGHT' if direction == 'LEFT' else 'LEFT'
+            
+            if direction in vertical_dirs:
+                if food_pos[0] > snake_pos[0]:
+                    best_direction = 'RIGHT'
+                else:
+                    best_direction = 'LEFT'
+
+            print(f'Optimal input: {best_direction}')
+            
+            X = load_example_data(best_direction, test=False)
+            predicted_direction = predict_direction(X)
+
+            print(f'Turning {predicted_direction}.' + (' MISCLASSIFICATION' if predicted_direction != best_direction else ''))
+            print()
+
+            if predicted_direction == 'LEFT': 
+                event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT)
+            else:
+                event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT)
+            pygame.event.post(event)
+
+            time.sleep(0.5)
+
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
-                    print('Turning Left.')
                     direction = dir_map[(direction, 'LEFT')]
                     awaiting_input = False
                 elif event.key == pygame.K_RIGHT:
-                    print('Turning Right.')
                     direction = dir_map[(direction, 'RIGHT')]
                     awaiting_input = False
     
